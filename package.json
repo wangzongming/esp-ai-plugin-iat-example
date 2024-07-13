@@ -1,0 +1,11 @@
+{
+  "name": "esp-ai-plugin-iat-example",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "dependencies": { },
+  "devDependencies": {},
+  "scripts": { },
+  "author": "",
+  "license": "ISC"
+}
