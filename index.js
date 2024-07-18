@@ -11,16 +11,47 @@ module.exports = {
     // 插件类型 LLM | TTS | IAT
     type: "IAT",
     /**
-    * 插件逻辑
-    * @param {String} device_id 设备id  
-    * @param {Function} cb ({text, device_id})=> void 回调函数   
+     * 语音识别插件  
+     * @param {String}      device_id           设备ID    
+     * @param {Number}      devLog              日志输出等级，为0时不应该输出任何日志   
+     * @param {Object}      api_key             用户配置的key   
+     * @param {Number}      vad_eos             用户配置的静默时间，超过这个时间不说话就结束语音识别  
+     * @param {Function}    logWSServer         将 ws 服务回传给框架，如果不是ws服务可以这么写: logWSServer({ close: ()=> {} })
+     * @param {Function}    iatServerErrorCb    与 TTS 服务之间发生错误时调用，并且传入错误说明，eg: ttsServerErrorCb("意外错误") 
+     * @param {Function}    cb                  IAT 识别的结果调用这个方法回传给框架 eg: cb({ text: "我是语音识别结果"  })
+     * @param {Function}    logSendAudio        记录发送音频数据给服务的函数，框架在合适的情况下会进行调用
+     * @param {Function}    connectServerCb     连接 iat 服务后需要调用这个方法告诉框架：eg: connectServerCb(true)
+     * @param {Function}    serverTimeOutCb     当 IAT 服务连接成功了，但是长时间不响应时
+     * @param {Function}    iatEndQueueCb       iat 静默时间达到后触发， 一般在这里面进行最后一帧的发送，告诉服务端结束识别 
+     * @param {Function}    log                 为保证日志输出的一致性，请使用 log 对象进行日志输出，eg: log.error("错误信息")、log.info("普通信息")、log.iat_info("iat 专属信息")
     */
-    main(device_id, cb) {
-        const { devLog, api_key, iat_server } = G_config;
-        devLog && console.log('\n=== 开始请求语音识别 ===');
-        const config = {
-            appid: api_key[iat_server]?.appid,
-        }
+    main({ device_id, log, devLog, api_key, vad_eos, cb, iatServerErrorCb, logWSServer, logSendAudio, connectServerCb, serverTimeOutCb, iatEndQueueCb }) {
+        const config = { ...api_key }
+
+        // // 连接 ws 服务后并且上报给框架
+        // const iat_ws = new WebSocket("ws:/xxx")
+        // logWSServer(iat_ws);
+        // iat_ws.on('open', (event) => {
+        //     // 服务连接成功后必须调用这个方法
+        //     connectServerCb(true);
+        // })
+        // iat_ws.on('close', () => {
+        //     // 关闭或者意外断开时也必须调用这个方法
+        //     connectServerCb(false);
+        // })
+
+        // // 建连错误
+        // iat_ws.on('error', (err) => { 
+        //     // 必须调用下面两个方法
+        //     iatServerErrorCb(err);
+        //     connectServerCb(false);
+        // })
+
+
+        // 当达到静默时间后会自动执行这个任务
+        iatEndQueueCb(() => {
+            // 比如发送最后一帧数据等...
+        })
 
         /**
          * 函数回到中可以收到客户端采集到的 pcm 音频：单通道/16khz 
@@ -31,20 +62,18 @@ module.exports = {
 
             // 要发送给服务器的参数
             let frameDataSection = {
-                "status": iat_status,
+                "status": 0,
                 // 这里的帧率一定要和 inmp441 终端对上
                 "format": "audio/L16;rate=16000",
                 "audio": data.toString('base64'),
                 "encoding": "raw"
             }
-            // ... 
+            // 发送给服务器的请求... 
             console.log("PCM:", data)
         }
-        // 固定写法
-        G_devices.set(device_id, {
-            ...G_devices.get(device_id),
-            send_pcm: send_pcm
-        })
+
+        // 必须将这个函数传给框架，当硬件采集到音频数据后，会调用这个函数
+        logSendAudio(send_pcm)
 
 
         setTimeout(() => {
