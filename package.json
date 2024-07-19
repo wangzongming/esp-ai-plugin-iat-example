@@ -1,6 +1,7 @@
 {
   "name": "esp-ai-plugin-iat-example",
-  "version": "0.0.1",
+  "keywords": ["esp-ai-plugin", "esp-ai-plugin-iat"],
+  "version": "0.0.2",
   "description": "",
   "main": "index.js",
   "dependencies": { },
